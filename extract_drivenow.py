@@ -202,6 +202,8 @@ def find_ride(driver):
 
     rides_list = rides_field.find_elements(
         By.XPATH, "//div/div[@class='car-result']")
+
+    currency = rides_field.find_element(By.XPATH, "//*[@id='X-Page-Nitro-Content']/div/div/div[1]/div/div[4]/div/div/div/div[1]/div/div/table[1]/tr/td[3]/div[1]/span/span/span[1]/span")
     # print(rides_field.text)
 
     # soup = BeautifulSoup(driver.page_source, 'lxml')
@@ -211,14 +213,15 @@ def find_ride(driver):
 
     data_path = "//*[@id='X-Page-Nitro-Content']/div/div/div[1]/div/div[4]/div/div/div/div["
 
+    price_heading = 'Price (' + currency.text + ')'
     # create pandas file
-    df = pd.DataFrame(columns=['Name', 'Supplier', 'Type', 'Price'])
+    df = pd.DataFrame(columns=['Name', 'Supplier', 'Type', price_heading ])
 
     for i in range(1, len(rides_list) + 1):
 
         try:
             price = driver.find_element(
-            By.XPATH, data_path + str(i) + "]/div/div/table[1]/tr/td[3]/div[1]")
+            By.XPATH, data_path + str(i) + "]/div/div/table[1]/tr/td[3]/div[1]/span/span/span[2]")
             print("Price: " + str(i) + " : " + price.text)
 
         except NoSuchElementException:
@@ -235,6 +238,11 @@ def find_ride(driver):
                 By.XPATH, data_path + str(i) + "]/div/div/table[2]/tr/td[1]/div/img")
             src = supplier_img.get_attribute('src')
             srcs = src.split("/")
+            # split img name and format and select image name
+            supplier_name = srcs[-1].split(".")[0]
+            # split for budget-140-40
+            supplier_name = supplier_name.split('-')[0]
+            supplier_name = supplier_name.capitalize()
         except NoSuchElementException:
             print("Element not found Supplier Img:" + str(i))
 
@@ -244,17 +252,19 @@ def find_ride(driver):
             print("Element not found Vehicle Type:" + str(i))
 
         else:
+
+            
             print(ride_name.text + " supplier: " +
-            srcs[-1] + " vehicle Type: " + vehicle_type.text)
+            supplier_name + " vehicle Type: " + vehicle_type.text)
 
             ride = Ride(ride_name.text,
-                srcs[-1], vehicle_type=vehicle_type.text, price=price.text)
+                supplier_name, vehicle_type=vehicle_type.text, price=price.text)
             
-            data = {'Name': ride_name.text, 'Supplier': srcs[-1], 'Type':vehicle_type.text, 'Price': price.text}
+            data = {'Name': ride_name.text, 'Supplier': supplier_name, 'Type':vehicle_type.text, price_heading: price.text}
             # new_data = pd.Series(data)
             df = df.append(pd.Series(data), ignore_index=True)
             
-            print("append to list")
+            
         print(ride)
     df.to_csv('data.csv')
 
