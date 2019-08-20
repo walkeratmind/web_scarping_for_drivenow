@@ -9,7 +9,7 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from bs4 import BeautifulSoup
 import pandas as pd
 
-import xlsxwriter
+from openpyxl import Workbook
 
 from Vehicle import Ride
 
@@ -29,8 +29,6 @@ TASKS:
 # chrome_path = "D:/Softwares/webdriver/chromedriver"
 # driver = webdriver.Firefox(
 #     executable_path="D:/Softwares/webdriver/geckodriver")
-
-url = "https://www.drivenow.com.au"
 
 
 def fetch_data(driver, url):
@@ -86,11 +84,16 @@ def fetch_data(driver, url):
     # filter supplier for efficiency
     select_supplier(driver)
 
+    # supplier_list = ["Avis", "Budget", "Europecar", "Hertz", "Thrifty"]
+
     # find Rides
     find_ride(driver)
 
+
 # supplier_list = ['Avis', 'Budget', 'Euro']
 supplier_list = []
+
+
 def select_supplier(driver):
     table_field = "//*[@id='X-Page-Nitro-Content']/div/div/div[1]/div/div[2]/div/div[2]/div/div/div/div[2]/span[4]/div/div[1]/table/"
     avis_field = "img[@src='/webdata/images/supplier/logo/lrg/avis.gif']"
@@ -209,7 +212,8 @@ def find_ride(driver):
     rides_list = rides_field.find_elements(
         By.XPATH, "//div/div[@class='car-result']")
 
-    currency = rides_field.find_element(By.XPATH, "//*[@id='X-Page-Nitro-Content']/div/div/div[1]/div/div[4]/div/div/div/div[1]/div/div/table[1]/tr/td[3]/div[1]/span/span/span[1]/span")
+    currency = rides_field.find_element(
+        By.XPATH, "//*[@id='X-Page-Nitro-Content']/div/div/div[1]/div/div[4]/div/div/div/div[1]/div/div/table[1]/tr/td[3]/div[1]/span/span/span[1]/span")
     # print(rides_field.text)
 
     # soup = BeautifulSoup(driver.page_source, 'lxml')
@@ -221,14 +225,14 @@ def find_ride(driver):
 
     price_heading = 'Price (' + currency.text + ')'
     # create pandas file
-    df = pd.DataFrame(columns=['Name', 'Supplier', 'Type', price_heading ])
+    # df = pd.DataFrame(columns=['Name', 'Supplier', 'Type', price_heading])
 
-    rides = [] #list all ride objects
+    rides = []  # list all ride objects
     for i in range(1, len(rides_list) + 1):
 
         try:
             price = driver.find_element(
-            By.XPATH, data_path + str(i) + "]/div/div/table[1]/tr/td[3]/div[1]/span/span/span[2]")
+                By.XPATH, data_path + str(i) + "]/div/div/table[1]/tr/td[3]/div[1]/span/span/span[2]")
             print("Price: " + str(i) + " : " + price.text)
 
         except NoSuchElementException:
@@ -255,26 +259,28 @@ def find_ride(driver):
             print("Element not found Supplier Img:" + str(i))
 
         try:
-            vehicle_type = rides_field.find_element(By.XPATH, data_path + str(i) + "]/div/div/table[1]/tr/td[2]/div[3]")
+            vehicle_type = rides_field.find_element(
+                By.XPATH, data_path + str(i) + "]/div/div/table[1]/tr/td[2]/div[3]")
         except NoSuchElementException:
             print("Element not found Vehicle Type:" + str(i))
 
         else:
             print(ride_name.text + " supplier: " +
-            supplier_name + " vehicle Type: " + vehicle_type.text)
+                  supplier_name + " vehicle Type: " + vehicle_type.text)
 
             ride = Ride(ride_name.text,
-                supplier_name, vehicle_type=vehicle_type.text, price=price.text)
+                        supplier_name, vehicle_type=vehicle_type.text, price=price.text)
 
             rides.append(ride)
-            
+
             # data = {'Name': ride_name.text, 'Supplier': supplier_name, 'Type':vehicle_type.text, price_heading: price.text}
             # new_data = pd.Series(data)
             # df = df.append(pd.Series(data), ignore_index=True)
-            
+
     # df.to_csv('data.csv')
     print(rides)
     write_to_excel(rides, supplier_list, price_heading)
+
 
 def parse_supplier_name_from_img(img_field):
     src = img_field.get_attribute('src')
@@ -286,57 +292,95 @@ def parse_supplier_name_from_img(img_field):
     supplier_name = supplier_name.capitalize()
     return supplier_name
 
+
 def write_to_excel(rides, supplier_list, price_heading):
 
+    workbook = Workbook()
+    worksheet = workbook.active
 
-    workbook = xlsxwriter.Workbook('list.xlsx')
-    worksheet = workbook.add_worksheet()
-
-    # center the text
-    worksheet.set_header('&C')
     # Add a bold format to use to highlight cells.
-    bold = workbook.add_format({'bold': True})
 
-    worksheet.write('A1', "PICKUP DATE", bold)
-    worksheet.write('A2', "PICKUP TIME", bold)
-    worksheet.write('A4', "DROPOFF DATE", bold)
-    worksheet.write('A5', "DROPOFF TIME", bold)
+    worksheet['A1'] = "PICKUP DATE"
+    worksheet['A2'] = "PICKUP TIME"
+    worksheet['A4'] = "DROPOFF DATE"
+    worksheet['A5'] = "DROPOFF TIME"
 
     row = 9
-    col = 2
-    init_col = 2
+    col = 3
+    init_col = 3
     for supplier in supplier_list:
-        letter = 'B'
-        worksheet.write(row, col, supplier)
+        worksheet.cell(row, col, value= supplier)
         col += 1
-        letter = chr(ord(letter) + 1)
 
     # merge supplier name cell
-    worksheet.merge_range(row -1, init_col, row -1 , col - 1, 'Supplier', bold)
-    # worksheet.write('A9', 'S.No.', bold)
-    worksheet.write('A9', 'Name', bold)
-    worksheet.write('B9', 'Type', bold)
-    worksheet.write('C9', 'Supplier', bold)
-    worksheet.write(row - 1, col, price_heading, bold)
+    worksheet.merge_cells(start_row=row - 1, start_column=init_col, end_row= row -1 , end_column=col - 1)
+    # worksheet.merge_range(row - 1, init_col, row - 1,
+    #                       col - 1, 'Supplier', bold)
 
-    row = 10
+    # worksheet.write('A9', 'S.No.', bold)
+    worksheet['A8'] = 'Name'
+    worksheet['B8'] = 'Type'
+    worksheet['C8'] = 'Supplier'
+
+    # prev_vehicle_type = ""
+    # excel_list = []
+    excel_list = {}
+    row, i = 10, 1
     for ride in rides:
-        col = 0
-        worksheet.write(row, col, ride.get_name())
+        col = 1
+
+        # rows = [worksheet.rows]
+
+        # for row in rows:
+        #     if row[1] == ride.get_name() && row[2] == ride.get_vehicle_type():
+        #         pass
+        #     else:
+
+        
+        # if excel_list[i].ride.get_name() == ride.get_name():
+        #     pass
+        worksheet.cell(row, col, ride.get_name())
+
         col += 1
-        worksheet.write(row, col, ride.get_vehicle_type()) 
+        # if prev_vehicle_type == ride.get_vehicle_type():
+        #     worksheet.merge_range(row, col, row + 1, col, ride.get_vehicle_type())
+        # else:
+        #     worksheet.write(row, col, ride.get_vehicle_type())
+
+        worksheet.cell(row, col, ride.get_vehicle_type())
+
+        prev_ride = excel_list.get(row - 1)
+
+        # if prev_ride.get_name() == ride.get_name() & & prev_ride.get_vehicle_type() == ride.get_vehicle_type():
+
         col += 1
-        worksheet.write(row, col, ride.get_supplier()) 
+        worksheet.cell(row, col, ride.get_supplier())
+
+        col += 4
+        worksheet.cell(row, col, ride.get_price())
+        price_col = col
         col += 1
-        worksheet.write(row, col + 3, ride.get_price()) 
-        col += 1
+
+        excel_list.update({row: ride})
+        # print("excel dict: " , len(excel_list))
+
         row += 1
-    workbook.close()
+        i += 1
+
+    # row, i = 10, 0
+    # for ride in rides:
+    
+    worksheet.cell(8, price_col, price_heading)
+
+
+    workbook.save('rides.xlsx')
+
 
 if __name__ == '__main__':
     # chrome_path = "D:/Softwares/webdriver/chromedriver"
     driver = webdriver.Firefox(
         executable_path="D:/Softwares/webdriver/geckodriver")
+    url = "https://www.drivenow.com.au"
     try:
         fetch_data(driver, url)
     finally:
