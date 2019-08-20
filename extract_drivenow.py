@@ -254,6 +254,7 @@ def find_ride(driver):
             # new_data = pd.Series(data)
             df = df.append(pd.Series(data), ignore_index=True)
             
+            print("append to list")
         print(ride)
     df.to_csv('data.csv')
 
