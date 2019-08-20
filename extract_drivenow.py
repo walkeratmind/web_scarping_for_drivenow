@@ -9,6 +9,8 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from bs4 import BeautifulSoup
 import pandas as pd
 
+import xlsxwriter
+
 from Vehicle import Ride
 
 '''Web Scarping  for www.drivenow.com.au'''
@@ -87,7 +89,8 @@ def fetch_data(driver, url):
     # find Rides
     find_ride(driver)
 
-
+# supplier_list = ['Avis', 'Budget', 'Euro']
+supplier_list = []
 def select_supplier(driver):
     table_field = "//*[@id='X-Page-Nitro-Content']/div/div/div[1]/div/div[2]/div/div[2]/div/div/div/div[2]/span[4]/div/div[1]/table/"
     avis_field = "img[@src='/webdata/images/supplier/logo/lrg/avis.gif']"
@@ -187,6 +190,9 @@ def check_supplier(driver, xpath):
     if item:
         item.click()
 
+        suppplier_name = parse_supplier_name_from_img(item)
+        supplier_list.append(suppplier_name)
+
 
 def close_banner(driver):
     WebDriverWait(driver, 10).until(ec.visibility_of_element_located(
@@ -217,6 +223,7 @@ def find_ride(driver):
     # create pandas file
     df = pd.DataFrame(columns=['Name', 'Supplier', 'Type', price_heading ])
 
+    rides = [] #list all ride objects
     for i in range(1, len(rides_list) + 1):
 
         try:
@@ -236,13 +243,14 @@ def find_ride(driver):
         try:
             supplier_img = rides_field.find_element(
                 By.XPATH, data_path + str(i) + "]/div/div/table[2]/tr/td[1]/div/img")
-            src = supplier_img.get_attribute('src')
-            srcs = src.split("/")
-            # split img name and format and select image name
-            supplier_name = srcs[-1].split(".")[0]
-            # split for budget-140-40
-            supplier_name = supplier_name.split('-')[0]
-            supplier_name = supplier_name.capitalize()
+            supplier_name = parse_supplier_name_from_img(supplier_img)
+            # src = supplier_img.get_attribute('src')
+            # srcs = src.split("/")
+            # # split img name and format and select image name
+            # supplier_name = srcs[-1].split(".")[0]
+            # # split for budget-140-40
+            # supplier_name = supplier_name.split('-')[0]
+            # supplier_name = supplier_name.capitalize()
         except NoSuchElementException:
             print("Element not found Supplier Img:" + str(i))
 
@@ -252,23 +260,78 @@ def find_ride(driver):
             print("Element not found Vehicle Type:" + str(i))
 
         else:
-
-            
             print(ride_name.text + " supplier: " +
             supplier_name + " vehicle Type: " + vehicle_type.text)
 
             ride = Ride(ride_name.text,
                 supplier_name, vehicle_type=vehicle_type.text, price=price.text)
-            
-            data = {'Name': ride_name.text, 'Supplier': supplier_name, 'Type':vehicle_type.text, price_heading: price.text}
-            # new_data = pd.Series(data)
-            df = df.append(pd.Series(data), ignore_index=True)
-            
-            
-        print(ride)
-    df.to_csv('data.csv')
 
-    print(df)
+            rides.append(ride)
+            
+            # data = {'Name': ride_name.text, 'Supplier': supplier_name, 'Type':vehicle_type.text, price_heading: price.text}
+            # new_data = pd.Series(data)
+            # df = df.append(pd.Series(data), ignore_index=True)
+            
+    # df.to_csv('data.csv')
+    print(rides)
+    write_to_excel(rides, supplier_list, price_heading)
+
+def parse_supplier_name_from_img(img_field):
+    src = img_field.get_attribute('src')
+    srcs = src.split("/")
+    # split img name and format and select image name
+    supplier_name = srcs[-1].split(".")[0]
+    # split for budget-140-40
+    supplier_name = supplier_name.split('-')[0]
+    supplier_name = supplier_name.capitalize()
+    return supplier_name
+
+def write_to_excel(rides, supplier_list, price_heading):
+
+
+    workbook = xlsxwriter.Workbook('list.xlsx')
+    worksheet = workbook.add_worksheet()
+
+    # center the text
+    worksheet.set_header('&C')
+    # Add a bold format to use to highlight cells.
+    bold = workbook.add_format({'bold': True})
+
+    worksheet.write('A1', "PICKUP DATE", bold)
+    worksheet.write('A2', "PICKUP TIME", bold)
+    worksheet.write('A4', "DROPOFF DATE", bold)
+    worksheet.write('A5', "DROPOFF TIME", bold)
+
+    row = 9
+    col = 2
+    init_col = 2
+    for supplier in supplier_list:
+        letter = 'B'
+        worksheet.write(row, col, supplier)
+        col += 1
+        letter = chr(ord(letter) + 1)
+
+    # merge supplier name cell
+    worksheet.merge_range(row -1, init_col, row -1 , col - 1, 'Supplier', bold)
+    # worksheet.write('A9', 'S.No.', bold)
+    worksheet.write('A9', 'Name', bold)
+    worksheet.write('B9', 'Type', bold)
+    worksheet.write('C9', 'Supplier', bold)
+    worksheet.write(row - 1, col, price_heading, bold)
+
+    row = 10
+    for ride in rides:
+        col = 0
+        worksheet.write(row, col, ride.get_name())
+        col += 1
+        worksheet.write(row, col, ride.get_vehicle_type()) 
+        col += 1
+        worksheet.write(row, col, ride.get_supplier()) 
+        col += 1
+        worksheet.write(row, col + 3, ride.get_price()) 
+        col += 1
+        row += 1
+    workbook.close()
 
 if __name__ == '__main__':
     # chrome_path = "D:/Softwares/webdriver/chromedriver"
