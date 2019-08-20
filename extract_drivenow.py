@@ -10,6 +10,8 @@ from bs4 import BeautifulSoup
 import pandas as pd
 
 from openpyxl import Workbook
+from openpyxl.styles import Color, PatternFill, Font, Border
+from openpyxl.styles import colors, Font
 
 from Vehicle import Ride
 
@@ -278,7 +280,7 @@ def find_ride(driver):
             # df = df.append(pd.Series(data), ignore_index=True)
 
     # df.to_csv('data.csv')
-    print(rides)
+    # print(rides)
     write_to_excel(rides, supplier_list, price_heading)
 
 
@@ -298,18 +300,46 @@ def write_to_excel(rides, supplier_list, price_heading):
     workbook = Workbook()
     worksheet = workbook.active
 
+    redFill = PatternFill(start_color='FF0000',
+                   end_color='FF0000',
+                   fill_type='solid')
+    blueFill = PatternFill(start_color='00B0F0',
+                   end_color='00B0F0',
+                   fill_type='solid')
+    purpleFill = PatternFill(start_color='213764',
+                   end_color='213764',
+                   fill_type='solid')
+
+    yellowFill = PatternFill(start_color='FFFF00',
+                   end_color='FFFF00',
+                   fill_type='solid')
+    greenFill = PatternFill(start_color='009B4E',
+                   end_color='009B4E',
+                   fill_type='solid')
+
+
+    color_list = [redFill, blueFill, purpleFill, yellowFill]
+
     # Add a bold format to use to highlight cells.
 
     worksheet['A1'] = "PICKUP DATE"
+    worksheet['A1'].font = Font(bold=True)
     worksheet['A2'] = "PICKUP TIME"
+    worksheet['A2'].font = Font(bold=True)
     worksheet['A4'] = "DROPOFF DATE"
+    worksheet['A4'].font = Font(bold=True)
     worksheet['A5'] = "DROPOFF TIME"
+    worksheet['A5'].font = Font(bold=True)
+
+
 
     row = 9
     col = 3
     init_col = 3
     for supplier in supplier_list:
         worksheet.cell(row, col, value= supplier)
+        worksheet.cell(row, col).fill = color_list[col - 3]
+        worksheet.cell(row, col).font = Font(bold=True, color=colors.WHITE)
         col += 1
 
     # merge supplier name cell
@@ -319,8 +349,14 @@ def write_to_excel(rides, supplier_list, price_heading):
 
     # worksheet.write('A9', 'S.No.', bold)
     worksheet['A8'] = 'Name'
+    worksheet['A8'].font = Font(bold=True)
+
     worksheet['B8'] = 'Type'
+    worksheet['B8'].font = Font(bold=True)
+
     worksheet['C8'] = 'Supplier'
+    worksheet['C8'].font = Font(bold=True)
+
 
     # prev_vehicle_type = ""
     # excel_list = []
@@ -330,42 +366,42 @@ def write_to_excel(rides, supplier_list, price_heading):
         col = 1
 
         # rows = [worksheet.rows]
+        is_added = False
+        line = 10
+        for item in worksheet.rows:
+            
+            if worksheet.cell(row=line,column=1).value == ride.get_name() and worksheet.cell(line, 2).value == ride.get_vehicle_type():
+                print("Added: in " + str(line) + ": "+ ride.get_name())
+                i = 3
+                for supplier in supplier_list:
+                    if ride.get_supplier() == supplier:
+                        worksheet.cell(line, i, value= ride.get_price())
+                        # set added to true
+                        print("found supplier: "+ supplier)
+                        is_added = True
+                        break
+                    i += 1
+                
+            line += 1
+        if not is_added:
+            worksheet.cell(row, col, ride.get_name())
 
-        # for row in rows:
-        #     if row[1] == ride.get_name() && row[2] == ride.get_vehicle_type():
-        #         pass
-        #     else:
+            col += 1
+            worksheet.cell(row, col, ride.get_vehicle_type())
+            col += 1
+            # worksheet.cell(row, col, ride.get_supplier())
 
-        
-        # if excel_list[i].ride.get_name() == ride.get_name():
-        #     pass
-        worksheet.cell(row, col, ride.get_name())
+            write_supplier_price(worksheet, row, ride)
+            col += 4
+            # worksheet.cell(row, col, ride.get_price())
+            price_col = col
+            col += 1
 
-        col += 1
-        # if prev_vehicle_type == ride.get_vehicle_type():
-        #     worksheet.merge_range(row, col, row + 1, col, ride.get_vehicle_type())
-        # else:
-        #     worksheet.write(row, col, ride.get_vehicle_type())
+            excel_list.update({row: ride})
+            # print("excel dict: " , len(excel_list))
 
-        worksheet.cell(row, col, ride.get_vehicle_type())
-
-        prev_ride = excel_list.get(row - 1)
-
-        # if prev_ride.get_name() == ride.get_name() & & prev_ride.get_vehicle_type() == ride.get_vehicle_type():
-
-        col += 1
-        worksheet.cell(row, col, ride.get_supplier())
-
-        col += 4
-        worksheet.cell(row, col, ride.get_price())
-        price_col = col
-        col += 1
-
-        excel_list.update({row: ride})
-        # print("excel dict: " , len(excel_list))
-
-        row += 1
-        i += 1
+            row += 1
+            i += 1
 
     # row, i = 10, 0
     # for ride in rides:
@@ -375,6 +411,15 @@ def write_to_excel(rides, supplier_list, price_heading):
 
     workbook.save('rides.xlsx')
 
+def write_supplier_price(worksheet, row, ride):
+    i = 3
+    for supplier in supplier_list:
+        if ride.get_supplier() == supplier:
+            worksheet.cell(row, i, value= ride.get_price())
+            # set added to true
+            # print("found supplier: "+ supplier)
+            break
+        i += 1
 
 if __name__ == '__main__':
     # chrome_path = "D:/Softwares/webdriver/chromedriver"
