@@ -36,9 +36,13 @@ TASKS:
 def fetch_data(driver, url):
     driver.get(url)
 
+    default_timeout = 20
+
     # set pickup location to Adelaide Airport
-    pickup_location = driver.find_element(By.ID,
-                                          "s0-10-1-1-2-4-4-1-14[0]-3-0-pickupLocation")
+    pickup_location = WebDriverWait(driver, default_timeout).until(
+        ec.visibility_of_element_located((By.ID, "s0-10-1-1-2-4-4-1-14[0]-3-0-pickupLocation")))
+    # pickup_location = driver.find_element(By.ID,
+    #                                       "s0-10-1-1-2-4-4-1-14[0]-3-0-pickupLocation")
     pickup_location.clear()
     pickup_location.send_keys("Adelaide Airport (ADL)")
 
@@ -47,7 +51,7 @@ def fetch_data(driver, url):
         print("location pickup selected")
 
         # wait for suggestions to appear
-        wait = WebDriverWait(driver, 10)
+        wait = WebDriverWait(driver, default_timeout)
 
         elem = wait.until(ec.visibility_of_element_located(
             (By.XPATH,
@@ -76,7 +80,7 @@ def fetch_data(driver, url):
     #     (By.XPATH, "/html/body/div[1]/div[1]/div/div/div[1]/div/div[2]/div/div[1]/div/div/div/div[3]")))
     # list_option.click()
 
-    list_option = WebDriverWait(driver, 10).until(ec.visibility_of_element_located(
+    list_option = WebDriverWait(driver, default_timeout).until(ec.visibility_of_element_located(
         (By.XPATH, "//*[@id='X-Page-Nitro-Content']/div/div/div[1]/div/div[2]/div/div[1]/div/div/div/div[3]")))
     list_option.click()
 
@@ -95,6 +99,8 @@ def fetch_data(driver, url):
 # supplier_list = ['Avis', 'Budget', 'Euro']
 supplier_list = []
 
+exception_count = 0
+
 
 def select_supplier(driver):
     table_field = "//*[@id='X-Page-Nitro-Content']/div/div/div[1]/div/div[2]/div/div[2]/div/div/div/div[2]/span[4]/div/div[1]/table/"
@@ -112,39 +118,42 @@ def select_supplier(driver):
     # check_supplier(
     #     driver, "//span/img[@src='/webdata/images/supplier/logo/budget-140-40.jpg']")
 
-    try:
-        # check avis if present
-        check_supplier(
-            driver, "//span/" + avis_field)
-    except TimeoutException:
-        print("Timed Out for avis: ")
+    # check avis if present
+    check_supplier(
+        driver, "//span/" + avis_field)
 
-    try:
-        # check budget if present
-        check_supplier(
-            driver, "//span/" + budegt_field)
-    except TimeoutException:
-        print("Timed Out for Budget: ")
+    # check budget if present
+    check_supplier(
+        driver, "//span/" + budegt_field)
 
-    try:
-        # check europcar if present
-        check_supplier(
-            driver, "//td[2]/span/" + europcar_field)
-    except TimeoutException:
-        print("Timed Out for Europcar: ")
+    # check europcar if present
+    check_supplier(
+        driver, "//td[2]/span/" + europcar_field)
 
-    try:
-        # check and mark hertz if present
-        check_supplier(
-            driver, "//td[2]/span/" + hertz_field)
-    except TimeoutException:
-        print("Timed Out for Hertz: ")
+    # check and mark hertz if present
+    check_supplier(
+        driver, "//td[2]/span/" + hertz_field)
 
-    try:
-        # check if thrifty is present and mark if present
-        check_supplier(driver, "//td[2]/span/" + thrifty_field)
-    except TimeoutException:
-        print("Timed Out for Thrifty: ")
+    # check if thrifty is present and mark if present
+    check_supplier(driver, "//td[2]/span/" + thrifty_field)
+
+    total_supplier = 5
+
+    if exception_count == total_supplier:
+        # insert all suppliers name as error in filter selection
+        table_path = "//*[@id='X-Page-Nitro-Content']/div/div/div[1]/div/div[2]/div/div[2]/div/div/div/div[2]/span[4]/div/div[1]/table"
+        suppliers_table = driver.find_elements(By.XPATH, table_path)
+
+        for i in range(1, len(suppliers_table) + 1):
+            # find supplier img and parse supplier name
+            try:
+                supplier_img = suppliers_table.find_element(
+                    By.XPATH, table_path + '/tr[' + str(i) + ']/span/img')
+                supplier_name = parse_supplier_name_from_img(supplier_img)
+                supplier_list.append(supplier_name)
+            except NoSuchElementException:
+                print("Select Supplier Table Img:" + str(i))
+
 
     # too slow while running in loops
     # for i in range(1, 10):
@@ -185,18 +194,25 @@ def select_supplier(driver):
 
 
 # to filter supplier
-
-
 def check_supplier(driver, xpath):
+    global exception_count
     # check item if present
-    item = WebDriverWait(driver, 2).until(ec.visibility_of_element_located(
-        (By.XPATH, xpath)))
-
-    if item:
-        item.click()
-
-        suppplier_name = parse_supplier_name_from_img(item)
-        supplier_list.append(suppplier_name)
+    try:
+        item = WebDriverWait(driver, 0.5).until(ec.visibility_of_element_located(
+            (By.XPATH, xpath)))
+    except TimeoutException:
+        srcs = xpath.split("/")
+        # split img name and format and select image name
+        supplier_name = srcs[-1].split(".")[0]
+        # split for budget-140-40
+        supplier_name = supplier_name.split('-')[0]
+        print("Time out for: " + supplier_name)
+        exception_count += 1
+    else:
+        if item:
+            item.click()
+            suppplier_name = parse_supplier_name_from_img(item)
+            supplier_list.append(suppplier_name)
 
 
 def close_banner(driver):
@@ -225,7 +241,7 @@ def find_ride(driver):
 
     data_path = "//*[@id='X-Page-Nitro-Content']/div/div/div[1]/div/div[4]/div/div/div/div["
 
-    price_heading = 'Price (' + currency.text + ')'
+    price_heading = 'price (' + currency.text + ')'
     # create pandas file
     # df = pd.DataFrame(columns=['Name', 'Supplier', 'Type', price_heading])
 
@@ -301,22 +317,21 @@ def write_to_excel(rides, supplier_list, price_heading):
     worksheet = workbook.active
 
     redFill = PatternFill(start_color='FF0000',
-                   end_color='FF0000',
-                   fill_type='solid')
+                          end_color='FF0000',
+                          fill_type='solid')
     blueFill = PatternFill(start_color='00B0F0',
-                   end_color='00B0F0',
-                   fill_type='solid')
+                           end_color='00B0F0',
+                           fill_type='solid')
     purpleFill = PatternFill(start_color='213764',
-                   end_color='213764',
-                   fill_type='solid')
+                             end_color='213764',
+                             fill_type='solid')
 
     yellowFill = PatternFill(start_color='FFFF00',
-                   end_color='FFFF00',
-                   fill_type='solid')
+                             end_color='FFFF00',
+                             fill_type='solid')
     greenFill = PatternFill(start_color='009B4E',
-                   end_color='009B4E',
-                   fill_type='solid')
-
+                            end_color='009B4E',
+                            fill_type='solid')
 
     color_list = [redFill, blueFill, purpleFill, yellowFill]
 
@@ -331,19 +346,18 @@ def write_to_excel(rides, supplier_list, price_heading):
     worksheet['A5'] = "DROPOFF TIME"
     worksheet['A5'].font = Font(bold=True)
 
-
-
     row = 9
     col = 3
     init_col = 3
     for supplier in supplier_list:
-        worksheet.cell(row, col, value= supplier)
+        worksheet.cell(row, col, value=supplier)
         worksheet.cell(row, col).fill = color_list[col - 3]
         worksheet.cell(row, col).font = Font(bold=True, color=colors.WHITE)
         col += 1
 
     # merge supplier name cell
-    worksheet.merge_cells(start_row=row - 1, start_column=init_col, end_row= row -1 , end_column=col - 1)
+    worksheet.merge_cells(
+        start_row=row - 1, start_column=init_col, end_row=row - 1, end_column=col - 1)
     # worksheet.merge_range(row - 1, init_col, row - 1,
     #                       col - 1, 'Supplier', bold)
 
@@ -354,9 +368,8 @@ def write_to_excel(rides, supplier_list, price_heading):
     worksheet['B8'] = 'Type'
     worksheet['B8'].font = Font(bold=True)
 
-    worksheet['C8'] = 'Supplier'
+    worksheet['C8'] = 'Supplier ' + price_heading
     worksheet['C8'].font = Font(bold=True)
-
 
     # prev_vehicle_type = ""
     # excel_list = []
@@ -369,19 +382,19 @@ def write_to_excel(rides, supplier_list, price_heading):
         is_added = False
         line = 10
         for item in worksheet.rows:
-            
-            if worksheet.cell(row=line,column=1).value == ride.get_name() and worksheet.cell(line, 2).value == ride.get_vehicle_type():
-                print("Added: in " + str(line) + ": "+ ride.get_name())
+
+            if worksheet.cell(row=line, column=1).value == ride.get_name() and worksheet.cell(line, 2).value == ride.get_vehicle_type():
+                print("Added: in " + str(line) + ": " + ride.get_name())
                 i = 3
                 for supplier in supplier_list:
                     if ride.get_supplier() == supplier:
-                        worksheet.cell(line, i, value= ride.get_price())
+                        worksheet.cell(line, i, value=ride.get_price())
                         # set added to true
-                        print("found supplier: "+ supplier)
+                        print("found supplier: " + supplier)
                         is_added = True
                         break
                     i += 1
-                
+
             line += 1
         if not is_added:
             worksheet.cell(row, col, ride.get_name())
@@ -405,21 +418,22 @@ def write_to_excel(rides, supplier_list, price_heading):
 
     # row, i = 10, 0
     # for ride in rides:
-    
+
     worksheet.cell(8, price_col, price_heading)
 
-
     workbook.save('rides.xlsx')
+
 
 def write_supplier_price(worksheet, row, ride):
     i = 3
     for supplier in supplier_list:
         if ride.get_supplier() == supplier:
-            worksheet.cell(row, i, value= ride.get_price())
+            worksheet.cell(row, i, value=ride.get_price())
             # set added to true
             # print("found supplier: "+ supplier)
             break
         i += 1
+
 
 if __name__ == '__main__':
     # chrome_path = "D:/Softwares/webdriver/chromedriver"
