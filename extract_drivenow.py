@@ -607,7 +607,7 @@ if __name__ == '__main__':
     from selenium.webdriver.chrome.options import Options
     chrome_options = webdriver.ChromeOptions()
     chrome_options.add_experimental_option("detach", True)
-    chrome_path = "chromedriver"
+    chrome_path = "webdriver/chromedriver"
     driver = webdriver.Chrome(
         executable_path=chrome_path, chrome_options=chrome_options)
 

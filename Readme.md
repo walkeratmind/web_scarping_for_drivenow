@@ -5,8 +5,13 @@
 **Steps to run this project**
 
 1. Install 'requirement.txt' in your python environment.
+
+   `For that runt this command: pip install -r 			requirement.txt`
+
 2. Make sure you have chrome browser installed as we used chromewebdriver for browser
+
    1. check your chrome browser version and make sure that your webdriver version and browser version matches
+
 3. Run 'extract_drivenow.py' file
 
 
