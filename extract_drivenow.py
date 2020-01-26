@@ -43,10 +43,17 @@ def fetch_data(driver, url):
     close_banner(driver)
 
     # set pickup location to Adelaide Airport
-    pickup_location = WebDriverWait(driver, default_timeout).until(
-        ec.visibility_of_element_located((By.ID, "s0-10-1-1-2-4-4-1-14[0]-3-0-pickupLocation")))
+    # try:
+    #     pickup_location = WebDriverWait(driver, default_timeout).until(
+    #     ec.visibility_of_element_located((By.ID, "s0-10-1-1-2-4-4-1-14[0]-3-0-pickupLocation")))
+    # except TimeoutException:
+    #     print("Time out Exception in location pickup")
+
+    pickup_location = driver.find_element(
+        By.XPATH, "/html/body/div[1]/div[1]/div/div/div[1]/div[1]/div/div/div/div/div/div/div/div/div[1]/div[2]/div/div/input")
     # pickup_location = driver.find_element(By.ID,
     #                                       "s0-10-1-1-2-4-4-1-14[0]-3-0-pickupLocation")
+    # //*[@id="s0-10-1-2-2-4-4-1-14[0]-3-0-pickupLocation"]
     pickup_location.clear()
     pickup_location.send_keys("Adelaide Airport (ADL)")
 
@@ -62,7 +69,7 @@ def fetch_data(driver, url):
         #      "//div[@class='autocomplete-suggestions LocationAutocompleteSuggestions LocationAutocompleteSuggestions-s0-10-1-1-2-4-4-1-14[0]-3-0-1-6-pickupLocation X-LocationAutocompleteSuggestions X-LocationAutocompleteSuggestions-Pickup']")))
 
         elem = wait.until(ec.visibility_of_element_located(
-            (By.XPATH, "/html/body/div[3]")))
+            (By.XPATH, "/html/body/div[3]/div[1]")))
         # suggestion_elem = driver.find_element_by_xpath("//div[@class='autocomplete-suggestions LocationAutocompleteSuggestions LocationAutocompleteSuggestions-s0-10-1-1-2-4-4-1-14[0]-3-0-1-6-pickupLocation X-LocationAutocompleteSuggestions X-LocationAutocompleteSuggestions-Pickup']").click()
 
         # move cursor down and hit enter
@@ -72,11 +79,11 @@ def fetch_data(driver, url):
 
         # set PICKUP date
         select_date(driver, pickup_date,
-                    "//*[@id='s0-10-1-1-2-4-4-1-14[0]-3-0-pickupDate']")
+                    "//*[@id='s0-10-1-2-2-4-4-1-14[0]-3-0-pickupDate']")
 
         # set DROPOFF date
-        select_date(driver, dropoff_date,
-                    "//*[@id='s0-10-1-1-2-4-4-1-14[0]-3-0-dropOffDate']")
+        # select_date(driver, dropoff_date,
+        #             "//*[@id='s0-10-1-2-2-4-4-1-14[0]-3-0-dropOffDate']")
 
         # dropoff_date_field = WebDriverWait(driver, default_timeout).until(ec.visibility_of_element_located(
         #     (By.XPATH, "//*[@id='s0-10-1-1-2-4-4-1-14[0]-3-0-dropOffDate']")))
@@ -516,12 +523,14 @@ def write_to_excel(rides, supplier_list, price_heading):
 
     # worksheet.cell(8, price_col, price_heading)
     dir = "data"
-    filename = 'ride_list_of_' + PICKUP_DATE.lower() + ' to ' + DROPOFF_DATE.lower() + '.xlsx'
+    filename = 'ride_list_of_' + PICKUP_DATE.lower() + ' to ' + \
+        DROPOFF_DATE.lower() + '.xlsx'
     if not os.path.exists(dir):
         os.makedirs(dir)
     distinct_filename = get_nonexistant_path(dir + '/' + filename)
     workbook.save(distinct_filename)
     print("Workbook Saved: " + distinct_filename)
+
 
 def get_nonexistant_path(fname_path):
     """
@@ -541,6 +550,7 @@ def get_nonexistant_path(fname_path):
         i += 1
         new_fname = "{}-{}{}".format(filename, i, file_extension)
     return new_fname
+
 
 def write_supplier_price(worksheet, row, ride):
     i = 3
@@ -595,7 +605,6 @@ hertz_field = 7, keddy_field = 8, thrifty_field = 9]
 
 # select avis, budget and dollar
 selected_supplier = [1, 2, 3, 0, 4, 5]
-
 
 
 # timeout for webdriverWait
